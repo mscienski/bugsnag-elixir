@@ -4,8 +4,10 @@ defmodule Bugsnag do
   require Logger
 
   alias Bugsnag.Payload
+  alias Bugsnag.SessionTracker
 
   @notify_url "https://notify.bugsnag.com"
+  @session_url "https://sessions.bugsnag.com"
   @request_headers [{"Content-Type", "application/json"}]
 
   def start(_type, _args) do
@@ -30,6 +32,10 @@ defmodule Bugsnag do
 
     if !config[:api_key] and reported_stage() do
       Logger.warn("Bugsnag api_key is not configured, errors will not be reported")
+    end
+
+    if config[:auto_capture_sessions] do
+      SessionTracker.start_session(session_url())
     end
 
     children = [
@@ -100,6 +106,8 @@ defmodule Bugsnag do
     [
       api_key: {:system, "BUGSNAG_API_KEY", nil},
       endpoint_url: {:system, "BUGSNAG_ENDPOINT_URL", @notify_url},
+      session_url: {:system, "BUGSNAG_SESSION_URL", @session_url},
+      auto_capture_sessions: {:system, "BUGSNAG_AUTO_CAPTURE_SESSIONS", false},
       use_logger: {:system, "BUGSNAG_USE_LOGGER", true},
       release_stage: {:system, "BUGSNAG_RELEASE_STAGE", "production"},
       notify_release_stages: {:system, "BUGSNAG_NOTIFY_RELEASE_STAGES", ["production"]},
@@ -125,6 +133,10 @@ defmodule Bugsnag do
 
   defp notify_url do
     Application.get_env(:bugsnag, :endpoint_url, @notify_url)
+  end
+
+  defp session_url do
+    Application.get_env(:bugsnag, :session_url, @session_url)
   end
 
   defp exception_filter() do
